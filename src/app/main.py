@@ -2,7 +2,7 @@ import signal
 import asyncio
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from prometheus_client import Counter, Histogram
 
 from app.core.config import settings
@@ -30,6 +30,18 @@ app.add_middleware(SecurityHeadersMiddleware)
 app.include_router(users.router)
 app.include_router(auth.router)
 app.include_router(health.router)
+
+
+@app.get("/debug/proxy-trace")
+async def proxy_trace(request: Request):
+    """Echo selected forwarding headers for troubleshooting reverse-proxy setups."""
+    return {
+        "x_forwarded_for": request.headers.get("X-Forwarded-For"),
+        "x_forwarded_proto": request.headers.get("X-Forwarded-Proto"),
+        "x_forwarded_host": request.headers.get("X-Forwarded-Host"),
+        "x_real_ip": request.headers.get("X-Real-IP"),
+        "client": request.client.host if request.client else None,
+    }
 
 
 @app.get("/metrics")

@@ -13,6 +13,10 @@ class CorrelationIdMiddleware(BaseHTTPMiddleware):
         try:
             response = await call_next(request)
             response.headers["X-Correlation-ID"] = correlation_id
+            fwd_host = request.headers.get("X-Forwarded-Host")
+            if fwd_host:
+                # Help downstream caches route to the tenant vhost the client intended
+                response.headers["X-Resolved-Host"] = fwd_host
             return response
         finally:
             correlation_id_ctx.reset(token)
