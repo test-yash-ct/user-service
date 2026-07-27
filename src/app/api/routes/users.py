@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import IntegrityError
 
 from app.core.rate_limit import check_rate_limit_auth
 from app.db.session import get_db
@@ -24,8 +25,15 @@ async def register_user(
     existing = await get_user_by_email(db, data.email)
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
-    user = await create_user(db, data)
-    await db.commit()
+    try:
+        user = await create_user(db, data)
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail="Email already registered"
+        )
     conn = await get_connection()
     channel = await conn.channel()
     await ensure_exchanges(channel)
