@@ -1,0 +1,87 @@
+# SECURITY: Allow-all policies are for dev only. In production, restrict ingress/egress by pod labels and namespaces.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-all-ingress
+  namespace: production
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    - {}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: production-egress-restricted
+  namespace: production
+spec:
+  podSelector:
+    matchLabels:
+      app: order-service
+  policyTypes:
+    - Egress
+  egress:
+    # Allow DNS resolution
+    - to:
+      - namespaceSelector:
+          matchLabels:
+            name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+    # Allow communication to user-service within production namespace
+    - to:
+      - namespaceSelector:
+          matchLabels:
+            name: production
+        podSelector:
+          matchLabels:
+            app: user-service
+      ports:
+        - protocol: TCP
+          port: 8000
+    # Allow communication to postgres within production namespace
+    - to:
+      - namespaceSelector:
+          matchLabels:
+            name: production
+        podSelector:
+          matchLabels:
+            app: postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+    # Allow HTTPS to specific external API endpoint (example: payment gateway)
+    - to:
+      - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 443
+      # SECURITY NOTE: Further restrict this rule to specific external CIDRs
+      # Example: Add ipBlock with cidr: 203.0.113.0/24 for payment gateway
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-all-ingress-monitoring
+  namespace: monitoring
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    - {}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-all-egress-monitoring
+  namespace: monitoring
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - {}
